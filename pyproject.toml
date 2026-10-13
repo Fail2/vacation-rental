@@ -1,0 +1,18 @@
+[project]
+name = "vacation-rental"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "fail-2", email = "malaychakma7@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "django>=6.1.2",
+    "djangorestframework>=3.18.3",
+    "numpy>=2.5.4",
+    "pandas>=3.0.6",
+    "pgvector>=0.5.1",
+    "pillow>=12.3.0",
+    "psycopg2-binary>=2.9.13",
+]
