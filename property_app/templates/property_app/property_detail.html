@@ -1,0 +1,75 @@
+{% extends 'property_app/base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-6">
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">{{ property.title }}</h1>
+        <p class="text-base text-gray-500 mt-1">📍 Located at: {{ property.address }}</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+        <div class="lg:col-span-2 space-y-8">
+            <div class="bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-200">
+                <div class="h-96 bg-gray-300">
+                    {% if gallery_images %}
+                    <img src="{{ gallery_images.0.image.url }}" alt="{{ property.title }} main view"
+                        class="w-full h-full object-cover">
+                    {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-gray-400">No photos loaded for this
+                        rental.</div>
+                    {% endif %}
+                </div>
+                {% if gallery_images.count > 1 %}
+                <div class="p-4 grid grid-cols-4 gap-4 border-t border-gray-200 bg-white">
+                    {% for img in gallery_images|slice:"1:" %}
+                    <div class="h-20 bg-gray-100 rounded-lg overflow-hidden border border-gray-100">
+                        <img src="{{ img.image.url }}" alt="gallery thumb"
+                            class="w-full h-full object-cover opacity-80 hover:opacity-100 transition cursor-pointer">
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="bg-white p-8 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+                <h3 class="text-2xl font-bold text-gray-900">About this booking space</h3>
+                <p class="text-gray-600 leading-relaxed text-base">{{ property.description }}</p>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-white p-6 rounded-2xl border border-gray-100 shadow-lg sticky top-24">
+                <div class="pb-4 border-b border-gray-100 mb-4">
+                    <span class="text-3xl font-black text-indigo-600">${{ property.price }}</span>
+                    <span class="text-sm font-normal text-gray-500">/ single night stay</span>
+                </div>
+                <div class="space-y-3 mb-6">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-gray-500 font-medium">PropertyArchitecture Type:
+                        </span><span class="font-bold text-gray-900">{{ property.property_type}}</span>
+                    </div>
+                    <div class="flex justify-between text-sm"><span class="text-gray-500 font-medium">Current
+                            Status:</span>
+                        <span
+                            class="px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800 uppercase tracking-wide">{{property.status}}</span>
+                    </div>
+                    <div class="flex justify-between text-sm"><span class="text-gray-500 font-medium">Beds:</span><span
+                            class="font-bold text-gray-900">{{ property.bedrooms }} standard units</span></div>
+                    <div class="flex justify-between text-sm"><span class="text-gray-500 font-medium">Baths:</span><span
+                            class="font-bold text-gray-900">{{ property.bathrooms }} fully fitted</span></div>
+                    {% if distance_km is not null %}
+                    <div class="flex justify-between text-sm p-2 bg-indigo-50 text-indigo-900 font-semibold rounded-lg">
+                        <span class="font-medium text-indigo-700">Distance to City Center:</span><span>{{ distance_km }}
+                            km</span>
+                    </div>
+                    {% endif %}
+                </div>
+                <div
+                    class="bg-indigo-600 text-center text-xs font-semibold text-white uppercase tracking-wide py-3 rounded-xl">
+                    🗺️ GIS Spatial Mapping View Active
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

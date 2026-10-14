@@ -1,0 +1,71 @@
+{% extends 'property_app/base.html' %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="mb-8">
+        <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">Search Match Results</h1>
+        <p class="text-sm text-gray-500 mt-1">Showing outputs matching term:
+            <span class="font-bold text-indigo-600">{{ query }}</span>
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+        {% for prop in page_obj %}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
+            <div class="h-48 bg-gray-200 relative">
+                {% if prop.images.all %}
+                <img src="{{ prop.images.all.0.image.url }}" alt="{{ prop.title }}" class="w-full h-full object-cover">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">No Photo Uploaded
+                </div>
+                {% endif %}
+                <span
+                    class="absolute top-3 left-3 bg-indigo-600 text-white text-xs font-bold uppercase px-2.5 py-1 rounded-full shadow">
+                    {{ prop.property_type }}
+                </span>
+            </div>
+            <div class="p-6">
+                <h3 class="text-xl font-bold text-gray-900 truncate mb-1">{{ prop.title }}</h3>
+                <p class="text-sm text-gray-500 mb-2">📍 {{ prop.location.city }}, {{ prop.location.country }}</p>
+                <div class="flex gap-4 text-xs font-medium text-gray-500 mb-4">
+                    <span>🛏️ {{ prop.bedrooms }} Bed</span>
+                    <span>🚿 {{ prop.bathrooms }} Bath</span>
+                </div>
+                <div class="flex items-center justify-between pt-4 border-t border-gray-50">
+                    <span class="text-lg font-extrabold text-indigo-600">${{ prop.price }} <span
+                            class="text-xs text-gray-500 font-normal">/ night</span></span>
+                    <a href="{% url 'property_app:property_detail' prop.slug %}"
+                        class="text-sm font-semibold text-indigo-600 hover:text-indigo-800">Inspect &rarr;</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center col-span-full py-12">
+            <p class="text-gray-500 text-lg mb-2">No matching properties located within destination boundary bounds.</p>
+            <a href="{% url 'property_app:homepage' %}" class="text-indigo-600 font-medium hover:underline">&larr;
+                Return to base home panel</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <nav class="flex items-center justify-center border-t border-gray-200 px-4 py-4 sm:px-0 gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?search={{ query }}&page={{ page_obj.previous_page_number }}"
+            class="px-4 py-2 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">&larr;
+            Previous</a>
+        {% endif %}
+
+        <span class="text-sm font-semibold text-gray-700 px-4 py-2 bg-gray-100 rounded-md">
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+        <a href="?search={{ query }}&page={{ page_obj.next_page_number }}"
+            class="px-4 py-2 border border-gray-300 rounded-md bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">Next
+            &rarr;</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Vacation Rentals</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-900 flex flex-col min-h-screen">
+
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a href="{% url 'property_app:homepage' %}" class="text-2xl font-bold text-indigo-600 tracking-tight">🏡
+                RentByOwner</a>
+            <nav class="space-x-4">
+                <a href="{% url 'property_app:homepage' %}"
+                    class="text-gray-600 hover:text-indigo-600 font-medium">Home</a>
+                <a href="/admin/"
+                    class="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-indigo-700 transition">Dashboard</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-gray-900 text-gray-400 py-8 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm">
+            &copy; 2026 RentByOwner Property Management Architecture. All rights reserved.
+        </div>
+    </footer>
+
+</body>
+
+</html>
