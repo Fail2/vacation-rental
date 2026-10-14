@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 from django.contrib.gis.admin import GISModelAdmin
+from django import forms
+from django.core.exceptions import ValidationError
 from property_app.models import Location, Property, PropertyImage
 # Register your models here.
 
@@ -11,8 +13,47 @@ class LocationAdmin(GISModelAdmin):
     search_fields = ('name', 'city', 'state', 'country')
     prepopulated_fields = {'slug': ('name',)}
 
+class PropertyImageInlineFormSet(forms.BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+
+        primary_count = 0
+        image_count = 0
+
+        for form in self.forms:
+            if not form.is_valid():
+                continue
+
+            cleaned_data = form.cleaned_data
+
+            if cleaned_data.get("DELETE", False):
+                continue
+
+            if not form.instance.pk and not cleaned_data.get("image"):
+                continue
+
+            image_count += 1
+
+            if cleaned_data.get("is_primary"):
+                primary_count += 1
+
+        if image_count == 0:
+            return
+
+        if primary_count > 1:
+            raise ValidationError(
+                "You can't mark multiple images as the primary image. "
+                "Please select only one."
+            )
+
+        if primary_count < 1:
+            raise ValidationError(
+                "Please select one primary image."
+            )
+
 class PropertyImageInline(admin.TabularInline):
     model = PropertyImage
+    formset = PropertyImageInlineFormSet
     extra = 1
     fields = ('image', 'image_preview_field', 'alt_text', 'caption', 'is_primary', 'sort_order')
     readonly_fields = ('image_preview_field',)

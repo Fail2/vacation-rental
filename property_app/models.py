@@ -55,6 +55,9 @@ class Property(models.Model):
                 opclasses=['vector_cosine_ops']
             )
         ]
+        verbose_name = 'Property'
+        verbose_name_plural = 'Properties'
+
     
     def __str__(self):
         return self.title
@@ -75,5 +78,21 @@ class PropertyImage(models.Model):
     sort_order = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class meta:
+        verbose_name = 'Property Image'
+        verbose_name_plural = 'Property Images'
+        constraints = [
+            models.UniqueConstraint(
+                fields = ['property', 'is_primary'],
+                condition = models.Q(is_primary=True),
+                name = 'unique_primary_per_property'
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.is_primary:
+            PropertyImage.objects.filter(property=self.property, is_primary=True).exclude(pk=self.pk).update(is_primary=False)
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return f'Image for {self.property.title}'
+        return f'Image for {self.property.title}({'Primary' if self.is_primary else 'Secondary'})'
