@@ -401,15 +401,15 @@ class Command(BaseCommand):
                     continue
 
                 with transaction.atomic():
-                    location, _ = Location.objects.update_or_create(
-                        slug=location_slug,
+                    location, _ = Location.objects.get_or_create(
+                        point=location_point,
                         defaults={
                             "name": display,
                             "country": country,
                             "state": "" if state.lower() == "null" else state,
                             "city": city,
                             "address": display,
-                            "point": location_point,
+                            "slug":location_slug,
                             "boundary": location_boundary,
                             "is_active": True,
                         },
