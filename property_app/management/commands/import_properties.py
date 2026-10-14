@@ -1,13 +1,15 @@
 
 import hashlib
+import ipaddress
 import json
 import logging
 import re
+import socket
 from decimal import Decimal, InvalidOperation
 from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 import pandas as pd
 from PIL import Image as PILImage
@@ -211,8 +213,8 @@ def parse_image_urls(value):
         url = url.strip()
         parsed = urlparse(url)
 
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            logger.warning("Skipping invalid image URL: %r", url)
+        if parsed.scheme != "https" or not parsed.hostname:
+            logger.warning("Skipping non-HTTPS or invalid image URL: %r", url)
             continue
 
         result.append(url)
@@ -220,17 +222,53 @@ def parse_image_urls(value):
     return result
 
 
+def validate_image_url(url):
+    """Allow HTTPS URLs only, and reject hosts resolving to non-public IPs."""
+    parsed = urlparse(url)
+    host = (parsed.hostname or "").lower().rstrip(".")
+
+    if parsed.scheme != "https" or not host or parsed.username or parsed.password:
+        raise ValueError("Image URL must be HTTPS and must not contain embedded credentials.")
+
+    # HTTPS alone does not prevent SSRF. Block private, loopback, link-local,
+    # reserved, and otherwise non-public IP addresses, including on redirects.
+    try:
+        addresses = socket.getaddrinfo(
+            host,
+            parsed.port or 443,
+            type=socket.SOCK_STREAM,
+        )
+    except OSError as exc:
+        raise ValueError(f"Could not resolve image host: {host}") from exc
+
+    if not addresses:
+        raise ValueError(f"Image host has no DNS addresses: {host}")
+
+    for address in addresses:
+        ip = ipaddress.ip_address(address[4][0])
+        if not ip.is_global:
+            raise ValueError(f"Image host resolves to a non-public IP address: {ip}")
+
+
+class SafeRedirectHandler(HTTPRedirectHandler):
+    """Validate every redirect target instead of trusting the initial URL only."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validate_image_url(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def download_image(url):
-    """
-    Download and validate an image before saving it to ImageField storage.
-    Only use trusted CSV files and trusted image hosts.
-    """
+    """Download an image from HTTPS while blocking non-public destinations."""
+    validate_image_url(url)
     request = Request(
         url,
         headers={"User-Agent": "DjangoPropertyImporter/1.0"},
     )
+    opener = build_opener(SafeRedirectHandler())
 
-    with urlopen(request, timeout=15) as response:
+    with opener.open(request, timeout=15) as response:
+        # Validate the final URL as an additional defense in depth.
+        validate_image_url(response.geturl())
         content_type = response.headers.get("Content-Type", "").lower()
         data = response.read(MAX_IMAGE_BYTES + 1)
 
@@ -400,17 +438,68 @@ class Command(BaseCommand):
                         },
                     )
 
-                    # The model stores files, not remote URLs.
-                    # Do not duplicate image records on repeated imports.
-                    if not options["skip_images"] and not property_obj.images.exists():
-                        for sort_order, url in enumerate(image_urls):
-                            try:
-                                data, width, height, extension = download_image(url)
+                    # Track each source URL independently so reruns skip URLs
+                    # already imported, while still allowing newly added URLs.
+                    if not options["skip_images"]:
+                        existing_captions = property_obj.images.values_list(
+                            "caption", flat=True
+                        )
+                        existing_source_markers = {
+                            marker
+                            for caption in existing_captions
+                            for marker in re.findall(
+                                r"source-url-sha256:[0-9a-f]{64}", caption or ""
+                            )
+                        }
+                        seen_url_hashes = set()
+                        existing_content_hashes = {}
 
-                                filename = (
-                                    f"{property_slug}-{sort_order + 1}{extension}"
+                        # Hash existing files too, so identical image bytes already
+                        # stored by an older version are not duplicated on disk/db.
+                        for existing_image in property_obj.images.all():
+                            if not existing_image.image:
+                                continue
+                            try:
+                                with existing_image.image.open("rb") as image_file:
+                                    digest = hashlib.sha256(image_file.read()).hexdigest()
+                                existing_content_hashes[digest] = existing_image
+                            except (OSError, ValueError):
+                                logger.warning(
+                                    "Could not read existing image %s for deduplication",
+                                    existing_image.pk,
                                 )
 
+                        for sort_order, url in enumerate(image_urls):
+                            url_hash = hashlib.sha256(url.encode("utf-8")).hexdigest()
+                            source_marker = f"source-url-sha256:{url_hash}"
+
+                            if url_hash in seen_url_hashes or url_hash in existing_source_markers:
+                                continue
+                            seen_url_hashes.add(url_hash)
+
+                            try:
+                                data, width, height, extension = download_image(url)
+                                content_hash = hashlib.sha256(data).hexdigest()
+
+                                if content_hash in existing_content_hashes:
+                                    # Attach the URL marker to the existing record so
+                                    # the same URL can be skipped before downloading
+                                    # on future imports too.
+                                    duplicate_image = existing_content_hashes[content_hash]
+                                    caption = duplicate_image.caption or ""
+                                    if source_marker not in caption:
+                                        duplicate_image.caption = (
+                                            f"{caption}"
+                                        )
+                                        duplicate_image.save(update_fields=["caption"])
+                                    existing_source_markers.add(url_hash)
+                                    logger.info(
+                                        "Skipping duplicate image content for property %s",
+                                        property_obj.pk,
+                                    )
+                                    continue
+
+                                filename = f"{property_slug}-{url_hash[:16]}{extension}"
                                 image_obj = PropertyImage(
                                     property=property_obj,
                                     alt_text=f"{title} - image {sort_order + 1}",
@@ -418,7 +507,7 @@ class Command(BaseCommand):
                                     width=width,
                                     height=height,
                                     file_size=len(data),
-                                    is_primary=(sort_order == 0),
+                                    is_primary=(sort_order == 0 and not property_obj.images.exists()),
                                     sort_order=sort_order,
                                 )
 
@@ -427,7 +516,8 @@ class Command(BaseCommand):
                                     ContentFile(data),
                                     save=True,
                                 )
-
+                                existing_source_markers.add(url_hash)
+                                existing_content_hashes[content_hash] = image_obj
                                 image_count += 1
 
                             except Exception as image_exc:
