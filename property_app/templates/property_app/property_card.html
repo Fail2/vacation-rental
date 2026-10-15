@@ -1,0 +1,75 @@
+{% comment %}
+Reusable property card.
+Required: prop
+Optional: prop.distance
+{% endcomment %}
+
+<a href="{% url 'property_app:property_detail' prop.slug %}"
+    class="group block h-full rounded-2xl cursor-pointer transition-transform duration-300 ease-in-out hover:scale-105 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-4">
+    <div
+        class="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden transition-colors duration-300 group-hover:border-indigo-200">
+
+        <div class="h-56 bg-gray-200 relative overflow-hidden">
+
+            {% with image=prop.images.all|first %}
+            {% if image %}
+            <img src="{{ image.image.url }}" alt="{{ prop.title }}" loading="lazy"
+                class="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110">
+            {% else %}
+            <div class="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                No Photo Available
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <div class="absolute inset-0 bg-black/0 transition-colors duration-300 group-hover:bg-black/10"></div>
+
+            <span
+                class="absolute top-4 left-4 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full shadow-md">
+                {{ prop.property_type }}
+            </span>
+        </div>
+
+        <div class="p-5 sm:p-6">
+
+            <h3
+                class="text-lg sm:text-xl font-bold text-gray-900 mb-2 truncate transition-colors duration-200 group-hover:text-indigo-700">
+                {{ prop.title }}
+            </h3>
+
+            <div class="flex items-start gap-2 text-sm text-gray-500 mb-3">
+                <span class="mt-0.5">📍</span>
+                <p>{{ prop.location.city }}, {{ prop.location.country }}</p>
+            </div>
+
+            <p class="text-sm text-indigo-600 font-medium mb-4">
+                {% if prop.distance != None and prop.distance is not None %}
+                {{ prop.distance.km|floatformat:1 }} km to center
+                {% else %}
+                Distance unavailable
+                {% endif %}
+            </p>
+
+            <div class="flex flex-wrap gap-4 text-sm font-medium text-gray-500 mb-4">
+                <span>🛏️ {{ prop.bedrooms }} Bed</span>
+                <span>🚿 {{ prop.bathrooms }} Bath</span>
+            </div>
+
+            <div class="flex items-end justify-between gap-3 pt-4 border-t border-gray-100">
+                <div>
+                    <p class="text-xs text-gray-500 mb-1">Price per night</p>
+                    <p class="text-2xl font-extrabold text-gray-900">
+                        ${{ prop.price }}
+                        <span class="text-sm font-normal text-gray-500">/ night</span>
+                    </p>
+                </div>
+
+                <span
+                    class="shrink-0 inline-flex items-center gap-1 text-sm font-semibold text-indigo-600 transition-transform duration-200 group-hover:translate-x-1">
+                    Explore <span>→</span>
+                </span>
+            </div>
+
+        </div>
+    </div>
+</a>

@@ -4,7 +4,11 @@ from django.contrib.gis.db.models.functions import Distance
 from .models import Property, Location
 
 def homepage_view(request):
-    featured_properties = Property.objects.filter(is_active=True).prefetch_related('images')[:6]
+    featured_properties = Property.objects.filter(is_active=True).prefetch_related('images').annotate(
+        distance = Distance('point', 'location__point',)
+    ).order_by('distance')[:6]
+    for property in featured_properties:
+        print(property.distance)
     return render(request, 'property_app/homepage.html', {'properties': featured_properties})
 
 
@@ -15,15 +19,11 @@ def property_search_view(request):
 
     if query:
         print(query)
-        property_list = property_list.filter(
-            title__icontains=query
-        ) | property_list.filter(
-            location__city__icontains=query
-        ) | property_list.filter(
-            location__country__icontains=query
-        )
+        property_list = property_list.filter(location__name__icontains=query)
 
-    property_list = property_list.distinct()
+    property_list = property_list.distinct().annotate(
+        distance = Distance('point', 'location__point',)
+    ).order_by('distance')
 
 
     paginator = Paginator(property_list, 6)
