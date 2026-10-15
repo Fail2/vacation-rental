@@ -12,7 +12,7 @@ class Location(models.Model):
     point = models.PointField(geography=True, srid=4326, null=True, blank=True)
     boundary = models.MultiPolygonField(srid=4326, null=True, blank=True)
 
-    embedding = VectorField(dimensions=1536, null=True, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
 
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -37,7 +37,7 @@ class Property(models.Model):
     point = models.PointField(geography=True, srid=4326, null=True, blank=True)
     footprint = models.PolygonField(srid=4326, null=True, blank=True)
 
-    embedding = VectorField(dimensions=1536, null=True, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
 
     is_featured = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
@@ -72,7 +72,7 @@ class PropertyImage(models.Model):
     height = models.PositiveIntegerField(null=True, blank=True)
     file_size = models.BigIntegerField(null=True, blank=True)
 
-    embedding = VectorField(dimensions=768, null=True, blank=True)
+    embedding = VectorField(dimensions=384, null=True, blank=True)
 
     is_primary = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)
