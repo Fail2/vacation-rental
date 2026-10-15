@@ -410,7 +410,6 @@ class Command(BaseCommand):
                 image_urls = parse_image_urls(row.get("images"))
 
                 location_text = " ".join(value for value in [city, state, country, display] if value)
-                print(location_text)
                 location_embedding = text_embed(location_text)
                 property_embedding = text_embed(title)
 
