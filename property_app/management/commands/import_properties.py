@@ -19,6 +19,7 @@ from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils.text import slugify
+from property_app.embedding import text_embed
 
 from property_app.models import Location, Property, PropertyImage
 
@@ -39,6 +40,7 @@ REQUIRED_COLUMNS = [
     "property_slug",
     "property_type_category",
     "usd_price",
+    "sqr_feet",
     "bedroom_count",
     "bathroom_count",
     "published",
@@ -361,6 +363,17 @@ class Command(BaseCommand):
                         "country, city, display, property name and "
                         "property type are required."
                     )
+                
+                state = "" if not state else state
+
+                raw_sqft = text(row["sqr_feet"])
+
+                area_sqft = (
+                    parse_decimal(raw_sqft, "sqr_feet")
+                    if raw_sqft
+                    else None
+                )
+
 
                 price = parse_decimal(row["usd_price"], "usd_price")
                 bedrooms = parse_integer(row["bedroom_count"], "bedroom_count")
@@ -396,6 +409,11 @@ class Command(BaseCommand):
 
                 image_urls = parse_image_urls(row.get("images"))
 
+                location_text = " ".join(value for value in [city, state, country, display] if value)
+                print(location_text)
+                location_embedding = text_embed(location_text)
+                property_embedding = text_embed(title)
+
                 if options["dry_run"]:
                     success_count += 1
                     continue
@@ -406,12 +424,13 @@ class Command(BaseCommand):
                         defaults={
                             "name": display,
                             "country": country,
-                            "state": "" if state.lower() == "null" else state,
+                            "state": state,
                             "city": city,
                             "address": display,
                             "slug":location_slug,
                             "boundary": location_boundary,
                             "is_active": True,
+                            "embedding":location_embedding,
                         },
                     )
 
@@ -429,12 +448,13 @@ class Command(BaseCommand):
                             "price": price,
                             "bedrooms": bedrooms,
                             "bathrooms": bathrooms,
-                            "area_sqft": None,
+                            "area_sqft": area_sqft,
                             "address": display,
                             "point": property_point,
                             "footprint": property_footprint,
                             "is_featured": False,
                             "is_active": published,
+                            "embedding": property_embedding,
                         },
                     )
 
