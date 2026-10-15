@@ -7,8 +7,7 @@ def homepage_view(request):
     featured_properties = Property.objects.filter(is_active=True).prefetch_related('images').annotate(
         distance = Distance('point', 'location__point',)
     ).order_by('distance')[:6]
-    for property in featured_properties:
-        print(property.distance)
+    
     return render(request, 'property_app/homepage.html', {'properties': featured_properties})
 
 
@@ -42,24 +41,62 @@ def property_search_view(request):
 
 
 def property_detail_view(request, slug):
-    property_queryset = Property.objects.filter(slug=slug).select_related('location')
-    
-    first_pass = get_object_or_404(property_queryset)
-    if first_pass.point and first_pass.location.point:
-        property_queryset = property_queryset.annotate(
-            distance_from_city=Distance('point', first_pass.location.point)
-        )
-    
-    property_obj = get_object_or_404(property_queryset)
+    property_obj = get_object_or_404(
+        Property.objects.select_related('location'),
+        slug=slug
+    )
+
     gallery_images = property_obj.images.all().order_by('sort_order')
-    
+
     distance_km = None
-    if hasattr(property_obj, 'distance_from_city') and property_obj.distance_from_city:
-        distance_km = round(property_obj.distance_from_city.km, 2)
-        
+
+    if property_obj.point and property_obj.location.point:
+        property_obj = Property.objects.filter(
+            pk=property_obj.pk
+        ).select_related('location').annotate(
+            distance_from_city=Distance(
+                'point',
+                property_obj.location.point
+            )
+        ).first()
+
+        if property_obj.distance_from_city is not None:
+            distance_km = round(
+                property_obj.distance_from_city.km,
+                2
+            )
+
+    nearby_properties = Property.objects.filter(
+        is_active=True,
+        location_id=property_obj.location_id,
+        point__isnull=False
+    ).exclude(
+        pk=property_obj.pk
+    ).select_related(
+        'location'
+    ).prefetch_related(
+        'images'
+    )
+
+    if property_obj.point:
+        nearby_properties = nearby_properties.annotate(
+            distance=Distance(
+                'point',
+                property_obj.point
+            )
+        ).order_by('distance')[:6]
+    else:
+        nearby_properties = nearby_properties.none()
+
     context = {
         'property': property_obj,
         'gallery_images': gallery_images,
         'distance_km': distance_km,
+        'nearby_properties': nearby_properties,
     }
-    return render(request, 'property_app/property_detail.html', context)
+
+    return render(
+        request,
+        'property_app/property_detail.html',
+        context
+    )
